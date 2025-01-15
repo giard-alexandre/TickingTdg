@@ -33,11 +33,11 @@
         </WrapPanel>
         <TreeDataGrid Source="{Binding DataSource}">
             <TreeDataGrid.Resources>
-                <DataTemplate x:Key="HeightCell" DataType="{x:Type viewModels:Person}">
+                <DataTemplate x:Key="HeightCell" DataType="{x:Type viewModels:ReactivePerson}">
                     <TextBlock VerticalAlignment="Center" HorizontalAlignment="Center"
                                Text="{Binding Height, StringFormat={}{0:0.0}}" />
                 </DataTemplate>
-                <DataTemplate x:Key="HobbiesCell" DataType="{x:Type viewModels:Person}">
+                <DataTemplate x:Key="HobbiesCell" DataType="{x:Type viewModels:ReactivePerson}">
                     <ItemsControl ItemsSource="{Binding Hobbies}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -55,7 +55,7 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </DataTemplate>
-                <DataTemplate x:Key="LanguagesCell" DataType="{x:Type viewModels:Person}">
+                <DataTemplate x:Key="LanguagesCell" DataType="{x:Type viewModels:ReactivePerson}">
                     <ItemsControl ItemsSource="{Binding LanguagesSpoken}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>

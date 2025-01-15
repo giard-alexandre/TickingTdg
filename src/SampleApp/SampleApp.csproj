@@ -25,6 +25,5 @@
         <PackageReference Include="Bogus" />
         <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
         <PackageReference Include="ReactiveUI.Fody" />
-        <PackageReference Include="Riok.Mapperly" />
     </ItemGroup>
 </Project>

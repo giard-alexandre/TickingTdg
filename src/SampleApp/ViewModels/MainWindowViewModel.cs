@@ -18,161 +18,222 @@ using ReactiveUI.Fody.Helpers;
 namespace SampleApp.ViewModels;
 
 public class MainWindowViewModel : ReactiveObject {
+    private const int ItemsCount = 20;
+    private readonly Faker<Person> _faker = new Faker<Person>().RuleFor(p => p.Id, faker => faker.IndexFaker)
+        .RuleFor(p => p.Badge, faker => faker.Person.UserName)
+        .RuleFor(p => p.DateOfBirth, faker => faker.Date.Past(80))
+        .RuleFor(p => p.WakeTime, faker => faker.Date.BetweenTimeOnly(new TimeOnly(4, 30), new TimeOnly(10, 30)))
+        .RuleFor(p => p.Height, faker => faker.Random.Double())
+        .RuleFor(p => p.ClaimedHeight, faker => (double)faker.Random.Number(101, 100_000) / 100)
+        .RuleFor(p => p.OtherHeight, faker => (double)faker.Random.Number(101, 100_000) / 100)
+        .RuleFor(p => p.Gender, faker => faker.Person.Gender)
+        .RuleFor(p => p.Money, faker => faker.Finance.Amount(-1000M, 1000M, 5))
+        .RuleFor(p => p.EditMoney, faker => faker.Finance.Amount(-1000M, 1000M, 5))
+        .RuleFor(p => p.IsChecked, faker => faker.Random.Bool())
+        .RuleFor(p => p.FirstName, f => f.Name.FirstName())
+        .RuleFor(p => p.LastName, f => f.Name.LastName())
+        .RuleFor(p => p.Email, (f, p) => f.Internet.Email(p.FirstName, p.LastName))
+        .RuleFor(p => p.PhoneNumber, f => f.Phone.PhoneNumber())
+        .RuleFor(p => p.Address, f => f.Address.StreetAddress())
+        .RuleFor(p => p.City, f => f.Address.City())
+        .RuleFor(p => p.State, f => f.Address.State())
+        .RuleFor(p => p.PostalCode, f => f.Address.ZipCode())
+        .RuleFor(p => p.Country, f => f.Address.Country())
+        .RuleFor(p => p.IsMarried, f => f.Random.Bool())
+        .RuleFor(p => p.WeddingAnniversary,
+            (f, p) => p.IsMarried ? f.Date.Past(10, p.DateOfBirth.AddYears(18)) : (DateTime?)null)
+        .RuleFor(p => p.Hobbies,
+            f => f.Make(3,
+                () => f.PickRandom("Fishing", "Cooking", "Gardening", "Reading", "Traveling", "Sports", "Art",
+                    "Music")))
+        .RuleFor(p => p.LanguagesSpoken, f => f.Make(2, () => f.Random.Word()));
+
+    private readonly Func<Person, ReactivePerson> _transformFactory = static p => new ReactivePerson {
+        Id = p.Id,
+        WakeTime = p.WakeTime,
+        Address = p.Address,
+        Badge = p.Badge,
+        City = p.City,
+        Country = p.City,
+        Email = p.Email,
+        Gender = p.Gender,
+        Height = p.Height,
+        Hobbies = p.Hobbies,
+        FirstName = p.FirstName,
+        Money = p.Money,
+        State = p.State,
+        ClaimedHeight = p.ClaimedHeight,
+        EditMoney = p.EditMoney,
+        IsChecked = p.IsChecked,
+        IsMarried = p.IsMarried,
+        LanguagesSpoken = p.LanguagesSpoken,
+        LastName = p.LastName,
+        OtherHeight = p.OtherHeight,
+        PhoneNumber = p.PhoneNumber,
+        PostalCode = p.PostalCode,
+        WeddingAnniversary = p.WeddingAnniversary,
+        DateOfBirth = p.DateOfBirth,
+    };
+
+    private readonly Action<ReactivePerson, Person> _updateAction = static (rp, p) => {
+        rp.WakeTime = p.WakeTime;
+        rp.Address = p.Address;
+        rp.Badge = p.Badge;
+        rp.City = p.City;
+        rp.Country = p.City;
+        rp.Email = p.Email;
+        rp.Gender = p.Gender;
+        rp.Height = p.Height;
+        rp.Hobbies = p.Hobbies;
+        rp.FirstName = p.FirstName;
+        rp.Money = p.Money;
+        rp.State = p.State;
+        rp.ClaimedHeight = p.ClaimedHeight;
+        rp.EditMoney = p.EditMoney;
+        rp.IsChecked = p.IsChecked;
+        rp.IsMarried = p.IsMarried;
+        rp.LanguagesSpoken = p.LanguagesSpoken;
+        rp.LastName = p.LastName;
+        rp.OtherHeight = p.OtherHeight;
+        rp.PhoneNumber = p.PhoneNumber;
+        rp.PostalCode = p.PostalCode;
+        rp.WeddingAnniversary = p.WeddingAnniversary;
+        rp.DateOfBirth = p.DateOfBirth;
+    };
+
     public MainWindowViewModel() {
+        //Set the randomizer seed to generate repeatable data sets.
+        Randomizer.Seed = new Random(8675309);
+
         var cache = new SourceCache<Person, int>(person => person.Id);
-        cache.AddOrUpdate(GenerateFakes(3000));
-        var data = cache.Connect().AutoRefresh(x => x.IsChecked);
+        cache.AddOrUpdate(_faker.Generate(ItemsCount));
+        var data = cache.Connect();
 
         var filter = this.WhenValueChanged(x => x.FilterText)
             .Throttle(TimeSpan.FromMilliseconds(500))
-            .Select(filterText => new Func<Person, bool>(person => string.IsNullOrEmpty(filterText)
+            .Select(static filterText => new Func<Person, bool>(person => string.IsNullOrEmpty(filterText)
                 || (int.TryParse(filterText, out int parsedId) && person.Id == parsedId)
                 || person.FirstName.Contains(filterText, StringComparison.InvariantCultureIgnoreCase)
                 || person.LastName.Contains(filterText, StringComparison.InvariantCultureIgnoreCase)
                 || person.Email.Contains(filterText, StringComparison.InvariantCultureIgnoreCase)
                 ));
 
-        data
-            .Filter(filter)
+        data.Filter(filter)
             .ObserveOn(RxApp.MainThreadScheduler)
-            .Bind(out var items, BindingOptions.NeverFireReset())
-            .Subscribe();
+            .TransformWithInlineUpdate(_transformFactory, _updateAction, transformOnRefresh: true)
 
-        DataSource = new FlatTreeDataGridSource<Person>(items) {
+            // .Sort(SortExpressionComparer<ReactivePerson>.Ascending(x => x.FirstName), resetThreshold: int.MaxValue)
+            // .Bind(out var items, BindingOptions.NeverFireReset())
+            .SortAndBind(out var items, SortExpressionComparer<ReactivePerson>.Ascending(x => x.FirstName),
+                new SortAndBindOptions() { ResetThreshold = int.MaxValue, UseReplaceForUpdates = true })
+            .Subscribe(x =>
+                Console.WriteLine(
+                    $"Adds: {x.Adds}, Refreshes: {x.Refreshes}, Removes: {x.Removes}, Updates: {x.Updates}"));
+
+        items.ObserveCollectionChanges()
+            .Subscribe(x => { Console.WriteLine($"Collection Change Reason: {x.EventArgs.Action}"); });
+
+        DataSource = new FlatTreeDataGridSource<ReactivePerson>(items) {
             Columns = {
-                new TextColumn<Person,int>("Id", x => x.Id),
-                new TextColumn<Person,string>("FirstName", x => x.FirstName),
-                new TextColumn<Person,string>("LastName", x => x.LastName),
-                new TextColumn<Person,DateTime>("DoB", x => x.DateOfBirth),
-                new TextColumn<Person,DateTime?>("MDateOfBirth", x => x.MDateOfBirth),
-                new TextColumn<Person,TimeOnly>("WakeTime", x => x.WakeTime),
-                new TextColumn<Person,TimeOnly>("MWakeTime", x => x.MWakeTime),
-                new TemplateColumn<Person>("Height", "HeightCell"),
-                new TextColumn<Person,double>("Raw Height", x => x.RawHeight),
-                new TextColumn<Person,Name.Gender>("Gender", x => x.Gender),
-                new TextColumn<Person,decimal>("Money", x => x.Money),
-                new CheckBoxColumn<Person>("Checked", x => x.IsChecked),
-                new TextColumn<Person,string>("Email", x => x.Email),
-                new TextColumn<Person,string>("Phone", x => x.PhoneNumber),
-                new TextColumn<Person,string>("Address", x => x.Address),
-                new TextColumn<Person,string>("City", x => x.City),
-                new TextColumn<Person,string>("State", x => x.State),
-                new TextColumn<Person,string>("Badge", x => x.Badge),
-                new TextColumn<Person,string>("PostalCode", x => x.PostalCode),
-                new TextColumn<Person,string>("Country", x => x.Country),
-                new CheckBoxColumn<Person>("Married", x => x.IsMarried),
-                new TextColumn<Person,DateTime?>("Anniv.", x => x.WeddingAnniversary),
-                new TextColumn<Person,double?>("Days Since", x => x.DaysSinceAnniversary),
-                new TemplateColumn<Person>("Hobbies", "HobbiesCell"),
-                new TemplateColumn<Person>("Languages", "LanguagesCell"),
-
+                new TextColumn<ReactivePerson,int>("Id", x => x.Id),
+                new TextColumn<ReactivePerson,string>("FirstName", x => x.FirstName),
+                new TextColumn<ReactivePerson,string>("LastName", x => x.LastName),
+                new TextColumn<ReactivePerson,DateTime>("DoB", x => x.DateOfBirth),
+                new TextColumn<ReactivePerson,DateTime?>("MDateOfBirth", x => x.MDateOfBirth),
+                new TextColumn<ReactivePerson,TimeOnly>("WakeTime", x => x.WakeTime),
+                new TextColumn<ReactivePerson,TimeOnly>("MWakeTime", x => x.MWakeTime),
+                new TemplateColumn<ReactivePerson>("Height", "HeightCell"),
+                new TextColumn<ReactivePerson,double>("Raw Height", x => x.RawHeight),
+                new TextColumn<ReactivePerson,Name.Gender>("Gender", x => x.Gender),
+                new TextColumn<ReactivePerson,decimal>("Money", x => x.Money),
+                new CheckBoxColumn<ReactivePerson>("Checked", x => x.IsChecked),
+                new TextColumn<ReactivePerson,string>("Email", x => x.Email),
+                new TextColumn<ReactivePerson,string>("Phone", x => x.PhoneNumber),
+                new TextColumn<ReactivePerson,string>("Address", x => x.Address),
+                new TextColumn<ReactivePerson,string>("City", x => x.City),
+                new TextColumn<ReactivePerson,string>("State", x => x.State),
+                new TextColumn<ReactivePerson,string>("Badge", x => x.Badge),
+                new TextColumn<ReactivePerson,string>("PostalCode", x => x.PostalCode),
+                new TextColumn<ReactivePerson,string>("Country", x => x.Country),
+                new CheckBoxColumn<ReactivePerson>("Married", x => x.IsMarried),
+                new TextColumn<ReactivePerson,DateTime?>("Anniv.", x => x.WeddingAnniversary),
+                new TextColumn<ReactivePerson,double?>("Days Since", x => x.DaysSinceAnniversary),
+                new TemplateColumn<ReactivePerson>("Hobbies", "HobbiesCell"),
+                new TemplateColumn<ReactivePerson>("Languages", "LanguagesCell"),
             },
         };
 
-        var faker = new Faker("en");
-
         // Tick Data on a 200 ms interval.
-        Observable.Interval(TimeSpan.FromMilliseconds(200), RxApp.TaskpoolScheduler)
+        Observable.Interval(TimeSpan.FromMilliseconds(500), RxApp.TaskpoolScheduler)
             .Where(_ => UpdateValues)
-            .Select(_ => Enumerable.Range(1, 500).Select(_ => faker.Random.Int(0, cache.Count)).ToList())
-            // .ObserveOn(RxApp.MainThreadScheduler)
             .Subscribe(idList => {
-                cache.Edit(updater => {
-                    foreach (var id in idList) {
-                        var item = updater.Lookup(id);
-                        if (item.HasValue) {
-                            var newItem = new Person();
-                            using (newItem.SuppressChangeNotifications()) {
-                                newItem.ApplyUpdate(item.Value);
-                                newItem.ClaimedHeight = (double)faker.Random.Number(101, 100_000) / 100;
-                                newItem.OtherHeight = (double)faker.Random.Number(101, 100_000) / 100;
-                                newItem.WakeTime = faker.Date.BetweenTimeOnly(new TimeOnly(4, 30), new TimeOnly(10, 30));
-                            }
-
-                            updater.AddOrUpdate(newItem);
-                        }
-                    }
-                });
-
+                var newItems = _faker.Generate(ItemsCount/5).Select(x => {
+                    x.Id = Random.Shared.Next(0, ItemsCount-1);
+                    return x;
+                }).ToList();
+                cache.AddOrUpdate(newItems);
             });
     }
 
-    public FlatTreeDataGridSource<Person> DataSource { get; set; }
+    public FlatTreeDataGridSource<ReactivePerson> DataSource { get; set; }
 
     [Reactive]
     public string? FilterText { get; set; }
 
     [Reactive]
     public bool UpdateValues { get; set; }
-
-    private static List<Person> GenerateFakes(int amount) {
-        //Set the randomizer seed to generate repeatable data sets.
-        Randomizer.Seed = new Random(8675309);
-        var faker = new Faker<Person>().RuleFor(p => p.Id, faker => faker.IndexFaker)
-            .RuleFor(p => p.Badge, faker => faker.Person.UserName)
-            .RuleFor(p => p.DateOfBirth, faker => faker.Date.Past(80))
-            .RuleFor(p => p.WakeTime, faker => faker.Date.BetweenTimeOnly(new TimeOnly(4, 30), new TimeOnly(10, 30)))
-            .RuleFor(p => p.Height, faker => faker.Random.Double())
-            .RuleFor(p => p.ClaimedHeight, faker => (double)faker.Random.Number(101, 100_000) / 100)
-            .RuleFor(p => p.OtherHeight, faker => (double)faker.Random.Number(101, 100_000) / 100)
-            .RuleFor(p => p.Gender, faker => faker.Person.Gender)
-            .RuleFor(p => p.Money, faker => faker.Finance.Amount(-1000M, 1000M, 5))
-            .RuleFor(p => p.EditMoney, faker => faker.Finance.Amount(-1000M, 1000M, 5))
-            .RuleFor(p => p.IsChecked, faker => faker.Random.Bool())
-            .RuleFor(p => p.FirstName, f => f.Name.FirstName())
-            .RuleFor(p => p.LastName, f => f.Name.LastName())
-            .RuleFor(p => p.Email, (f, p) => f.Internet.Email(p.FirstName, p.LastName))
-            .RuleFor(p => p.PhoneNumber, f => f.Phone.PhoneNumber())
-            .RuleFor(p => p.Address, f => f.Address.StreetAddress())
-            .RuleFor(p => p.City, f => f.Address.City())
-            .RuleFor(p => p.State, f => f.Address.State())
-            .RuleFor(p => p.PostalCode, f => f.Address.ZipCode())
-            .RuleFor(p => p.Country, f => f.Address.Country())
-            .RuleFor(p => p.IsMarried, f => f.Random.Bool())
-            .RuleFor(p => p.WeddingAnniversary,
-                (f, p) => p.IsMarried ? f.Date.Past(10, p.DateOfBirth.AddYears(18)) : (DateTime?)null)
-            .RuleFor(p => p.Hobbies,
-                f => f.Make(3,
-                    () => f.PickRandom("Fishing", "Cooking", "Gardening", "Reading", "Traveling", "Sports", "Art",
-                        "Music")))
-            .RuleFor(p => p.LanguagesSpoken, f => f.Make(2, () => f.Random.Word()));
-
-
-        return faker.Generate(amount);
-    }
 }
 
-public class Person : ReactiveObject {
-    private double _otherHeight;
-    private double _claimedHeight;
-    private bool _isChecked;
+public class ReactivePerson : ReactiveObject {
+    public int Id { get; set; }
+    [Reactive] public DateTime DateOfBirth { get; set; }
+    public DateTime? MDateOfBirth => DateOfBirth;
+    [Reactive] public TimeOnly WakeTime { get; set; }
+    public TimeOnly MWakeTime => WakeTime;
+    [Reactive] public double Height { get; set; }
+
+    [Reactive] public double ClaimedHeight { get; set; }
+
+    [Reactive] public double OtherHeight { get; set; }
+
+    public double RawHeight => Height;
+    [Reactive] public Name.Gender Gender { get; set; }
+    [Reactive] public decimal Money { get; set; }
+    [Reactive] public decimal EditMoney { get; set; }
+
+    [Reactive] public bool IsChecked { get; set; }
+
+    [Reactive] public string FirstName { get; set; }
+    [Reactive] public string LastName { get; set; }
+    [Reactive] public string Email { get; set; }
+    [Reactive] public string PhoneNumber { get; set; }
+    [Reactive] public string Address { get; set; }
+    [Reactive] public string City { get; set; }
+    [Reactive] public string State { get; set; }
+    [Reactive] public string PostalCode { get; set; }
+    [Reactive] public string Country { get; set; }
+    [Reactive] public bool IsMarried { get; set; }
+    [Reactive] public DateTime? WeddingAnniversary { get; set; }
+    public double? DaysSinceAnniversary => (DateTime.Now - WeddingAnniversary)?.TotalDays;
+    public List<string> Hobbies { get; set; } = [];
+    public List<string> LanguagesSpoken { get; set; } = [];
+    [Reactive] public string Badge { get; set; }
+}
+
+public class Person {
     public int Id { get; set; }
     public DateTime DateOfBirth { get; set; }
     public DateTime? MDateOfBirth => DateOfBirth;
     public TimeOnly WakeTime { get; set; }
     public TimeOnly MWakeTime => WakeTime;
     public double Height { get; set; }
-
-    public double ClaimedHeight {
-        get => _claimedHeight;
-        set => this.RaiseAndSetIfChanged(ref _claimedHeight, value);
-    }
-
-    public double OtherHeight {
-        get => _otherHeight;
-        set => this.RaiseAndSetIfChanged(ref _otherHeight, value);
-    }
-
+    public double ClaimedHeight { get; set; }
+    public double OtherHeight { get; set; }
     public double RawHeight => Height;
     public Name.Gender Gender { get; set; }
     public decimal Money { get; set; }
     public decimal EditMoney { get; set; }
-
-    public bool IsChecked {
-        get => _isChecked;
-        set => this.RaiseAndSetIfChanged(ref _isChecked, value);
-    }
-
+    public bool IsChecked { get; set; }
     public string FirstName { get; set; }
     public string LastName { get; set; }
     public string Email { get; set; }
