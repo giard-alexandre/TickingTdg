@@ -23,7 +23,6 @@
         <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" />
         <PackageReference Include="Avalonia.ReactiveUI" />
         <PackageReference Include="Bogus" />
-        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
         <PackageReference Include="ReactiveUI.Fody" />
     </ItemGroup>
 </Project>

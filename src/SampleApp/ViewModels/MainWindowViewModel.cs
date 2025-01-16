@@ -18,7 +18,7 @@ using ReactiveUI.Fody.Helpers;
 namespace SampleApp.ViewModels;
 
 public class MainWindowViewModel : ReactiveObject {
-    private const int ItemsCount = 20;
+    private const int ItemsCount = 500;
     private readonly Faker<Person> _faker = new Faker<Person>().RuleFor(p => p.Id, faker => faker.IndexFaker)
         .RuleFor(p => p.Badge, faker => faker.Person.UserName)
         .RuleFor(p => p.DateOfBirth, faker => faker.Date.Past(80))
@@ -120,12 +120,12 @@ public class MainWindowViewModel : ReactiveObject {
 
         data.Filter(filter)
             .ObserveOn(RxApp.MainThreadScheduler)
-            .TransformWithInlineUpdate(_transformFactory, _updateAction, transformOnRefresh: true)
+            .TransformWithInlineUpdate(_transformFactory, _updateAction)
 
-            // .Sort(SortExpressionComparer<ReactivePerson>.Ascending(x => x.FirstName), resetThreshold: int.MaxValue)
-            // .Bind(out var items, BindingOptions.NeverFireReset())
-            .SortAndBind(out var items, SortExpressionComparer<ReactivePerson>.Ascending(x => x.FirstName),
-                new SortAndBindOptions() { ResetThreshold = int.MaxValue, UseReplaceForUpdates = true })
+            .Sort(SortExpressionComparer<ReactivePerson>.Ascending(x => x.FirstName), resetThreshold: int.MaxValue)
+            .Bind(out var items, BindingOptions.NeverFireReset())
+            // .SortAndBind(out var items, SortExpressionComparer<ReactivePerson>.Ascending(x => x.FirstName),
+            //     new SortAndBindOptions() { ResetThreshold = int.MaxValue, UseReplaceForUpdates = true })
             .Subscribe(x =>
                 Console.WriteLine(
                     $"Adds: {x.Adds}, Refreshes: {x.Refreshes}, Removes: {x.Removes}, Updates: {x.Updates}"));
@@ -135,31 +135,31 @@ public class MainWindowViewModel : ReactiveObject {
 
         DataSource = new FlatTreeDataGridSource<ReactivePerson>(items) {
             Columns = {
-                new TextColumn<ReactivePerson,int>("Id", x => x.Id),
-                new TextColumn<ReactivePerson,string>("FirstName", x => x.FirstName),
-                new TextColumn<ReactivePerson,string>("LastName", x => x.LastName),
-                new TextColumn<ReactivePerson,DateTime>("DoB", x => x.DateOfBirth),
-                new TextColumn<ReactivePerson,DateTime?>("MDateOfBirth", x => x.MDateOfBirth),
-                new TextColumn<ReactivePerson,TimeOnly>("WakeTime", x => x.WakeTime),
-                new TextColumn<ReactivePerson,TimeOnly>("MWakeTime", x => x.MWakeTime),
-                new TemplateColumn<ReactivePerson>("Height", "HeightCell"),
-                new TextColumn<ReactivePerson,double>("Raw Height", x => x.RawHeight),
-                new TextColumn<ReactivePerson,Name.Gender>("Gender", x => x.Gender),
-                new TextColumn<ReactivePerson,decimal>("Money", x => x.Money),
-                new CheckBoxColumn<ReactivePerson>("Checked", x => x.IsChecked),
-                new TextColumn<ReactivePerson,string>("Email", x => x.Email),
-                new TextColumn<ReactivePerson,string>("Phone", x => x.PhoneNumber),
-                new TextColumn<ReactivePerson,string>("Address", x => x.Address),
-                new TextColumn<ReactivePerson,string>("City", x => x.City),
-                new TextColumn<ReactivePerson,string>("State", x => x.State),
-                new TextColumn<ReactivePerson,string>("Badge", x => x.Badge),
-                new TextColumn<ReactivePerson,string>("PostalCode", x => x.PostalCode),
-                new TextColumn<ReactivePerson,string>("Country", x => x.Country),
-                new CheckBoxColumn<ReactivePerson>("Married", x => x.IsMarried),
-                new TextColumn<ReactivePerson,DateTime?>("Anniv.", x => x.WeddingAnniversary),
-                new TextColumn<ReactivePerson,double?>("Days Since", x => x.DaysSinceAnniversary),
-                new TemplateColumn<ReactivePerson>("Hobbies", "HobbiesCell"),
-                new TemplateColumn<ReactivePerson>("Languages", "LanguagesCell"),
+                new TextColumn<ReactivePerson,int>("Id", x => x.Id, new GridLength(100, GridUnitType.Pixel)),
+                new TextColumn<ReactivePerson,string>("FirstName", x => x.FirstName, width: new GridLength(100, GridUnitType.Pixel)),
+                new TextColumn<ReactivePerson,string>("LastName", x => x.LastName, width: new GridLength(100, GridUnitType.Pixel)),
+                new TextColumn<ReactivePerson,DateTime>("DoB", x => x.DateOfBirth, width: new GridLength(100, GridUnitType.Pixel)),
+                new TextColumn<ReactivePerson,DateTime?>("MDateOfBirth", x => x.MDateOfBirth, width: new GridLength(100, GridUnitType.Pixel)),
+                new TextColumn<ReactivePerson,TimeOnly>("WakeTime", x => x.WakeTime, width: new GridLength(100, GridUnitType.Pixel)),
+                new TextColumn<ReactivePerson,TimeOnly>("MWakeTime", x => x.MWakeTime, width: new GridLength(100, GridUnitType.Pixel)),
+                new TemplateColumn<ReactivePerson>("Height", "HeightCell", width: new GridLength(100, GridUnitType.Pixel)),
+                new TextColumn<ReactivePerson,double>("Raw Height", x => x.RawHeight, width: new GridLength(100, GridUnitType.Pixel)),
+                new TextColumn<ReactivePerson,Name.Gender>("Gender", x => x.Gender, width: new GridLength(100, GridUnitType.Pixel)),
+                new TextColumn<ReactivePerson,decimal>("Money", x => x.Money, width: new GridLength(100, GridUnitType.Pixel)),
+                new CheckBoxColumn<ReactivePerson>("Checked", x => x.IsChecked, width: new GridLength(100, GridUnitType.Pixel)),
+                new TextColumn<ReactivePerson,string>("Email", x => x.Email, width: new GridLength(100, GridUnitType.Pixel)),
+                new TextColumn<ReactivePerson,string>("Phone", x => x.PhoneNumber, width: new GridLength(100, GridUnitType.Pixel)),
+                new TextColumn<ReactivePerson,string>("Address", x => x.Address, width: new GridLength(100, GridUnitType.Pixel)),
+                new TextColumn<ReactivePerson,string>("City", x => x.City, width: new GridLength(100, GridUnitType.Pixel)),
+                new TextColumn<ReactivePerson,string>("State", x => x.State, width: new GridLength(100, GridUnitType.Pixel)),
+                new TextColumn<ReactivePerson,string>("Badge", x => x.Badge, width: new GridLength(100, GridUnitType.Pixel)),
+                new TextColumn<ReactivePerson,string>("PostalCode", x => x.PostalCode, width: new GridLength(100, GridUnitType.Pixel)),
+                new TextColumn<ReactivePerson,string>("Country", x => x.Country, width: new GridLength(100, GridUnitType.Pixel)),
+                new CheckBoxColumn<ReactivePerson>("Married", x => x.IsMarried, width: new GridLength(100, GridUnitType.Pixel)),
+                new TextColumn<ReactivePerson,DateTime?>("Anniv.", x => x.WeddingAnniversary, width: new GridLength(100, GridUnitType.Pixel)),
+                new TextColumn<ReactivePerson,double?>("Days Since", x => x.DaysSinceAnniversary, width: new GridLength(100, GridUnitType.Pixel)),
+                new TemplateColumn<ReactivePerson>("Hobbies", "HobbiesCell", width: new GridLength(100, GridUnitType.Pixel)),
+                new TemplateColumn<ReactivePerson>("Languages", "LanguagesCell", width: new GridLength(100, GridUnitType.Pixel)),
             },
         };
 
